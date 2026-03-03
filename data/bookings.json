@@ -1,0 +1,67 @@
+[
+  {
+    "id": "1770935301250",
+    "date": "2/21/2026",
+    "time": "05:00 PM",
+    "userId": "0DDbcumo2be1dd3EGByzmvMVUL22",
+    "userName": "Manas",
+    "userEmail": "hardiyabhumika02@gmail.com",
+    "sessionType": "1:1 Coaching",
+    "focusArea": "Breathwork",
+    "intensity": "Medium",
+    "status": "confirmed",
+    "createdAt": "2026-02-12T22:28:21.250Z"
+  },
+  {
+    "id": "1770935988633",
+    "date": "2/21/2026",
+    "time": "10:00 AM",
+    "userId": "0DDbcumo2be1dd3EGByzmvMVUL22",
+    "userName": "Manas",
+    "userEmail": "hardiyabhumika02@gmail.com",
+    "sessionType": "Group Flow",
+    "focusArea": "Mindfulness",
+    "intensity": "Medium",
+    "status": "confirmed",
+    "createdAt": "2026-02-12T22:39:48.633Z"
+  },
+  {
+    "id": "1771713084012",
+    "date": "3/3/2026",
+    "time": "03:30 PM",
+    "userId": "6czbAYcZ40aOxuUv9WYiGmb4eA73",
+    "userName": "Manas Sharma",
+    "userEmail": "manas.sharma2084@gmail.com",
+    "sessionType": "1:1 Coaching",
+    "focusArea": "Mindfulness",
+    "intensity": "Medium",
+    "status": "confirmed",
+    "createdAt": "2026-02-21T22:31:24.015Z"
+  },
+  {
+    "id": "1772004086828",
+    "date": "2/27/2026",
+    "time": "09:00 AM",
+    "userId": "wfPL17d1Ldee2yqiI0A4lYk5rjt2",
+    "userName": "Bhuvan",
+    "userEmail": "manas@flownest.studio",
+    "sessionType": "4-Week Journey (1:1 Private)",
+    "focusArea": "Mindfulness",
+    "intensity": "Medium",
+    "status": "confirmed",
+    "createdAt": "2026-02-25T07:21:26.828Z"
+  },
+  {
+    "id": "1772062401757",
+    "date": "2026-03-01",
+    "time": "10:00 AM",
+    "userId": "guest",
+    "userName": "Test User",
+    "userEmail": "test@example.com",
+    "sessionType": "1:1 Coaching",
+    "focusArea": "Mindfulness",
+    "intensity": 50,
+    "status": "confirmed",
+    "createdAt": "2026-02-25T23:33:21.758Z"
+  }
+]
