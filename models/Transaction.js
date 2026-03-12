@@ -1,42 +1,41 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
 
-const transactionSchema = new mongoose.Schema({
+const Transaction = sequelize.define('Transaction', {
     userId: {
-        type: String, // Changed from ObjectId to String for Firebase UID compatibility
-        required: true,
-        index: true
+        type: DataTypes.STRING, // Firebase UID
+        allowNull: false
     },
     orderId: {
-        type: String,
-        required: true,
+        type: DataTypes.STRING,
+        allowNull: false,
         unique: true
     },
     paymentId: {
-        type: String
+        type: DataTypes.STRING
     },
     signature: {
-        type: String
+        type: DataTypes.TEXT
     },
     planName: {
-        type: String,
-        required: true
+        type: DataTypes.STRING,
+        allowNull: false
     },
     amount: {
-        type: Number,
-        required: true
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false
     },
     currency: {
-        type: String,
-        required: true,
-        default: 'INR'
+        type: DataTypes.STRING,
+        allowNull: false,
+        defaultValue: 'INR'
     },
     status: {
-        type: String,
-        enum: ['pending', 'captured', 'failed'],
-        default: 'pending'
+        type: DataTypes.ENUM('pending', 'captured', 'failed'),
+        defaultValue: 'pending'
     }
 }, {
     timestamps: true
 });
 
-module.exports = mongoose.model('Transaction', transactionSchema);
+module.exports = Transaction;

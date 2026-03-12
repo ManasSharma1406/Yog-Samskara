@@ -1,19 +1,41 @@
-const mongoose = require('mongoose');
+const { Sequelize } = require('sequelize');
+
+const sequelize = process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('localhost')
+    ? new Sequelize(process.env.DATABASE_URL, {
+        dialect: 'postgres',
+        logging: false,
+        pool: { max: 5, min: 0, acquire: 30000, idle: 10000 }
+    })
+    : new Sequelize({
+        dialect: 'sqlite',
+        storage: './database.sqlite',
+        logging: false
+    });
 
 const connectDB = async () => {
     try {
-        const conn = await mongoose.connect(process.env.MONGO_URI);
-        console.log(`MongoDB Connected: ${conn.connection.host}`);
+        await sequelize.authenticate();
+        console.log(`Database Connected via Sequelize (${sequelize.getDialect()})`);
 
-        // Handle errors after initial connection
-        mongoose.connection.on('error', err => {
-            console.error('Mongoose Connection Error! 💥');
-            console.error(err);
-        });
+        // Sync models (always sync in dev or if using sqlite)
+        if (process.env.NODE_ENV !== 'production' || sequelize.getDialect() === 'sqlite') {
+            await sequelize.sync({ alter: true });
+            console.log('Database models synchronized');
+            // Ensure displayName column exists (migration for existing SQLite DBs)
+            if (sequelize.getDialect() === 'sqlite') {
+                try {
+                    await sequelize.query('ALTER TABLE Profiles ADD COLUMN displayName VARCHAR(255)');
+                    console.log('Added displayName column to Profiles');
+                } catch (e) {
+                    if (!e.message?.includes('duplicate column name')) {
+                        console.warn('displayName migration:', e.message);
+                    }
+                }
+            }
+        }
     } catch (error) {
-        console.error(`Warning: MongoDB connection failed (${error.message}). Some features may be unavailable.`);
-        // Don't exit process, allow other utilities to run
+        console.error(`Warning: Database connection failed (${error.message}). Switching to SQLite fallback if not already using it.`);
     }
 };
 
-module.exports = connectDB;
+module.exports = { connectDB, sequelize };

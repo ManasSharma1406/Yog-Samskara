@@ -1,4 +1,4 @@
-const admin = require('firebase-admin');
+const { admin } = require('../config/firebaseAdmin');
 
 /**
  * Middleware to verify Firebase ID Token from Authorization header.
@@ -19,10 +19,17 @@ const protect = async (req, res, next) => {
     }
 
     try {
+        if (!admin.apps.length || !admin.auth) {
+            return res.status(503).json({ 
+                success: false, 
+                message: 'Authentication service unavailable. Firebase Admin is not configured.' 
+            });
+        }
         const decoded = await admin.auth().verifyIdToken(token);
-        req.user = { uid: decoded.uid, email: decoded.email };
+        req.user = { uid: decoded.uid, email: decoded.email, displayName: decoded.name };
         next();
     } catch (err) {
+        console.error('Auth verify error:', err.message);
         return res.status(401).json({ success: false, message: 'Not authorized, token failed' });
     }
 };

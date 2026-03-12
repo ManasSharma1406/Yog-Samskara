@@ -20,12 +20,13 @@ router.get('/:email', protect, async (req, res) => {
             });
         }
 
-        const profile = await Profile.findOne({ email });
+        const profile = await Profile.findOne({ where: { email } });
 
         if (!profile) {
-            return res.status(404).json({
-                success: false,
-                message: 'Profile not found'
+            return res.status(204).json({
+                success: true,
+                data: null,
+                message: 'Profile doesn\'t exist yet'
             });
         }
 
@@ -40,6 +41,30 @@ router.get('/:email', protect, async (req, res) => {
             message: 'Failed to fetch profile',
             error: error.message
         });
+    }
+});
+
+/**
+ * @route   POST /api/profiles/ensure
+ * @desc    Create minimal profile from Firebase user if none exists (for new signups)
+ * @access  Private
+ */
+router.post('/ensure', protect, async (req, res) => {
+    try {
+        const existing = await Profile.findOne({ where: { email: req.user.email } });
+        if (existing) {
+            return res.status(200).json({ success: true, data: existing, created: false });
+        }
+        const [profile, created] = await Profile.upsert({
+            userFirebaseUid: req.user.uid,
+            email: req.user.email,
+            displayName: req.user.displayName || req.user.email?.split('@')[0] || 'User',
+            isComplete: false
+        }, { returning: true });
+        res.status(201).json({ success: true, data: profile, created });
+    } catch (error) {
+        console.error('Ensure profile error:', error);
+        res.status(500).json({ success: false, message: 'Failed to ensure profile' });
     }
 });
 
@@ -67,15 +92,18 @@ router.post('/update', protect, async (req, res) => {
             });
         }
 
-        const profile = await Profile.findOneAndUpdate(
-            { email: profileData.email },
-            profileData,
-            { new: true, upsert: true, runValidators: true }
-        );
+        // Auto-assign the UID and displayName from auth
+        profileData.userFirebaseUid = req.user.uid;
+        if (req.user.displayName && !profileData.displayName) {
+            profileData.displayName = req.user.displayName;
+        }
+
+        // Use Sequelize upsert
+        const [profile, created] = await Profile.upsert(profileData);
 
         res.status(200).json({
             success: true,
-            message: 'Profile updated successfully',
+            message: created ? 'Profile created successfully' : 'Profile updated successfully',
             data: profile
         });
     } catch (error) {

@@ -1,51 +1,62 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
 
-const profileSchema = new mongoose.Schema({
+const Profile = sequelize.define('Profile', {
+    userFirebaseUid: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true
+    },
+    displayName: {
+        type: DataTypes.STRING
+    },
     email: {
-        type: String,
-        required: true,
+        type: DataTypes.STRING,
+        allowNull: false,
         unique: true,
-        index: true
+        validate: {
+            isEmail: true
+        }
     },
-    age: String,
-    dob: String,
+    age: DataTypes.STRING,
+    dob: DataTypes.STRING,
     health: {
-        type: String,
-        default: 'Good'
+        type: DataTypes.STRING,
+        defaultValue: 'Good'
     },
-    bmi: String,
-    goal: String,
-    styleOfYoga: String,
-    experienceLevel: String,
-    otherPhysicalActivity: String,
+    bmi: DataTypes.STRING,
+    goal: DataTypes.TEXT,
+    styleOfYoga: DataTypes.STRING,
+    experienceLevel: DataTypes.STRING,
+    otherPhysicalActivity: DataTypes.TEXT,
     medicalCondition: {
-        type: String,
-        default: 'None'
+        type: DataTypes.TEXT,
+        defaultValue: 'None'
     },
     historyOfInjury: {
-        type: String,
-        default: 'None'
+        type: DataTypes.TEXT,
+        defaultValue: 'None'
     },
     // Kosha Balance (Ratings 1-10)
-    annamaya: { type: Number, default: 5 },
-    pranamaya: { type: Number, default: 5 },
-    manomaya: { type: Number, default: 5 },
-    vijnanamaya: { type: Number, default: 5 },
-    anandamaya: { type: Number, default: 5 },
+    annamaya: { type: DataTypes.INTEGER, defaultValue: 5 },
+    pranamaya: { type: DataTypes.INTEGER, defaultValue: 5 },
+    manomaya: { type: DataTypes.INTEGER, defaultValue: 5 },
+    vijnanamaya: { type: DataTypes.INTEGER, defaultValue: 5 },
+    anandamaya: { type: DataTypes.INTEGER, defaultValue: 5 },
     // Emergency Contact
-    emergencyContactName: String,
-    emergencyContactPhone: String,
+    emergencyContactName: DataTypes.STRING,
+    emergencyContactPhone: DataTypes.STRING,
     // Health Details
-    medications: String,
-    surgeries: String,
-    cardioHealth: String,
-    respiratoryHealth: String,
-    isPregnant: { type: Boolean, default: false },
+    medications: DataTypes.TEXT,
+    surgeries: DataTypes.TEXT,
+    cardioHealth: DataTypes.TEXT,
+    respiratoryHealth: DataTypes.TEXT,
+    isPregnant: { type: DataTypes.BOOLEAN, defaultValue: false },
     // Contract
-    waiverAccepted: { type: Boolean, default: false },
-    isComplete: { type: Boolean, default: false }
+    waiverAccepted: { type: DataTypes.BOOLEAN, defaultValue: false },
+    isComplete: { type: DataTypes.BOOLEAN, defaultValue: false }
 }, {
     timestamps: true
 });
 
-module.exports = mongoose.model('Profile', profileSchema);
+module.exports = Profile;

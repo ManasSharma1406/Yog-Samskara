@@ -10,7 +10,9 @@ const { protect } = require('../middleware/authMiddleware');
  */
 router.get('/status', protect, async (req, res) => {
     try {
-        const subscription = await Subscription.findOne({ userId: req.user.uid });
+        const subscription = await Subscription.findOne({
+            where: { userId: req.user.uid }
+        });
 
         if (!subscription) {
             return res.status(200).json({

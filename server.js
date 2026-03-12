@@ -1,23 +1,24 @@
 const express = require('express');
 const dotenv = require('dotenv');
-const cookieParser = require('cookie-parser');
-const cors = require('cors');
-const admin = require('firebase-admin');
-const connectDB = require('./config/db');
-const errorHandler = require('./middleware/errorMiddleware');
 
 // Load env vars
 dotenv.config();
 
-// Initialize Firebase Admin (Temporarily disabled for debugging)
-/*
-try {
-    admin.initializeApp();
-    console.log('Firebase Admin Initialized');
-} catch (err) {
-    console.warn('Firebase Admin initialization warning:', err.message);
-}
-*/
+const cookieParser = require('cookie-parser');
+const cors = require('cors');
+const { initFirebaseAdmin } = require('./config/firebaseAdmin');
+const { connectDB } = require('./config/db');
+const errorHandler = require('./middleware/errorMiddleware');
+
+// Initialize Firebase Admin (required for user auth verification)
+initFirebaseAdmin();
+
+// Load models before connectDB so sync/alter works correctly
+require('./models/Profile');
+require('./models/Booking');
+require('./models/Subscription');
+require('./models/User');
+require('./models/Transaction');
 
 // Connect to database
 connectDB();
@@ -31,17 +32,36 @@ const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 
-// Body parser
+// Raw body parser for Razorpay webhook (must be before express.json())
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+
+// Body parser for all other routes
 app.use(express.json());
 
 // Cookie parser
 app.use(cookieParser());
 
 // Enable CORS
-app.use(cors({
-    origin: ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174'],
+const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5173',
+    'https://yog-samskara.vercel.app',
+    'https://yogsamskara.com',
+    'https://www.yogsamskara.com',
+];
+const corsOptions = {
+    origin: function (origin, callback) {
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) !== -1) return callback(null, true);
+        if (process.env.NODE_ENV === 'development' && origin?.startsWith('http://localhost')) return callback(null, true);
+        callback(new Error('Not allowed by CORS'));
+    },
     credentials: true
-}));
+};
+app.use(cors(corsOptions));
 
 // Mount routers
 app.use('/api/payments', payments);
@@ -73,3 +93,7 @@ process.on('uncaughtException', (err) => {
     console.error(err);
     process.exit(1);
 });
+
+// Export app for Vercel Serverless Functions
+module.exports = app;
+

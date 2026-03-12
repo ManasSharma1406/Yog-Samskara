@@ -1,49 +1,51 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
 
-const bookingSchema = new mongoose.Schema({
+const Booking = sequelize.define('Booking', {
     userId: {
-        type: String, // Firebase UID
-        required: true,
-        index: true
+        type: DataTypes.STRING, // Firebase UID
+        allowNull: false
     },
     userName: {
-        type: String,
-        required: true
+        type: DataTypes.STRING,
+        allowNull: false
     },
     userEmail: {
-        type: String,
-        required: true
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: {
+            isEmail: true
+        }
     },
     date: {
-        type: String, // Storing as string "YYYY-MM-DD" for simplicity with current frontend
-        required: true
+        type: DataTypes.STRING, // "YYYY-MM-DD"
+        allowNull: false
     },
     time: {
-        type: String, // e.g., "10:00 AM"
-        required: true
+        type: DataTypes.STRING, // e.g., "10:00 AM"
+        allowNull: false
     },
     sessionType: {
-        type: String,
-        default: '1:1 Coaching'
+        type: DataTypes.STRING,
+        defaultValue: '1:1 Coaching'
     },
     focusArea: {
-        type: String,
-        default: 'Mindfulness'
+        type: DataTypes.STRING,
+        defaultValue: 'Mindfulness'
     },
     intensity: {
-        type: Number,
-        default: 50
+        type: DataTypes.INTEGER,
+        defaultValue: 50
     },
     status: {
-        type: String,
-        enum: ['confirmed', 'cancelled', 'completed'],
-        default: 'confirmed'
+        type: DataTypes.ENUM('confirmed', 'cancelled', 'completed'),
+        defaultValue: 'confirmed'
     },
     meetingLink: {
-        type: String
+        type: DataTypes.TEXT
     }
 }, {
     timestamps: true
 });
 
-module.exports = mongoose.model('Booking', bookingSchema);
+module.exports = Booking;

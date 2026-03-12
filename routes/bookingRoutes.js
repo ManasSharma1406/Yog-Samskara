@@ -3,12 +3,11 @@ const router = express.Router();
 const Booking = require('../models/Booking');
 const Subscription = require('../models/Subscription');
 const { protect } = require('../middleware/authMiddleware');
-const { generateMeetingLink } = require('../utils/meetingLink');
 const { sendBookingEmail } = require('../utils/emailSender');
 
 /**
  * @route   POST /api/bookings/create
- * @desc    Create a booking in MongoDB and verify subscription
+ * @desc    Create a booking and verify subscription
  * @access  Private
  */
 router.post('/create', protect, async (req, res) => {
@@ -43,7 +42,7 @@ router.post('/create', protect, async (req, res) => {
         }
 
         // Check subscription status
-        const subscription = await Subscription.findOne({ userId: req.user.uid });
+        const subscription = await Subscription.findOne({ where: { userId: req.user.uid } });
 
         if (!subscription || subscription.status !== 'active') {
             return res.status(403).json({
@@ -70,15 +69,12 @@ router.post('/create', protect, async (req, res) => {
             sessionType: sessionType || '1:1 Coaching',
             focusArea: focusArea || 'Mindfulness',
             intensity: intensity || 50,
-            status: status || 'confirmed'
+            status: status || 'confirmed',
+            meetingLink: "https://meet.google.com/ngs-doim-gqq"
         };
 
-        // Save to MongoDB
+        // Save to Postgres
         const booking = await Booking.create(bookingData);
-
-        // Init meeting link as pending
-        booking.meetingLink = "Pending... (Teacher will assign Google Meet link soon)";
-        await booking.save();
 
         // Increment sessions used if it's a private session
         if (sessionType !== 'Group Class') {
@@ -99,7 +95,7 @@ router.post('/create', protect, async (req, res) => {
                             <p><strong>Date:</strong> ${date}</p>
                             <p><strong>Time:</strong> ${time}</p>
                             <p><strong>Session:</strong> ${sessionType}</p>
-                            <p><strong>Meeting Link:</strong> <a href="${meetingLink}" style="color: #000; font-weight: bold;">Join Session</a></p>
+                            <p><strong>Meeting Link:</strong> <a href="${booking.meetingLink}" style="color: #000; font-weight: bold;">Join Session</a></p>
                         </div>
                         <p>We look forward to seeing you!</p>
                         <p>Best regards,<br/>The YOG SAMSKARA Team</p>
@@ -144,7 +140,10 @@ router.get('/user/:email', protect, async (req, res) => {
             });
         }
 
-        const userBookings = await Booking.find({ userEmail: email }).sort({ date: -1 });
+        const userBookings = await Booking.findAll({
+            where: { userEmail: email },
+            order: [['date', 'DESC']]
+        });
 
         res.status(200).json({
             success: true,

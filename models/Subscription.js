@@ -1,44 +1,43 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
 
-const subscriptionSchema = new mongoose.Schema({
+const Subscription = sequelize.define('Subscription', {
     userId: {
-        type: String, // Firebase UID
-        required: true,
-        unique: true,
-        index: true
+        type: DataTypes.STRING, // Firebase UID
+        allowNull: false,
+        unique: true
     },
     planName: {
-        type: String,
-        required: true,
-        default: 'Free'
+        type: DataTypes.STRING,
+        allowNull: false,
+        defaultValue: 'Free'
     },
     status: {
-        type: String,
-        enum: ['active', 'inactive', 'pending', 'expired'],
-        default: 'inactive'
+        type: DataTypes.ENUM('active', 'inactive', 'pending', 'expired'),
+        defaultValue: 'inactive'
     },
     totalSessions: {
-        type: Number,
-        default: 0
+        type: DataTypes.INTEGER,
+        defaultValue: 0
     },
     sessionsUsed: {
-        type: Number,
-        default: 0
+        type: DataTypes.INTEGER,
+        defaultValue: 0
     },
     amountPaid: {
-        type: Number,
-        default: 0
+        type: DataTypes.DECIMAL(10, 2),
+        defaultValue: 0.00
     },
     currency: {
-        type: String,
-        default: 'INR'
+        type: DataTypes.STRING,
+        defaultValue: 'INR'
     },
-    startDate: Date,
-    expiryDate: Date,
-    lastPaymentId: String,
-    lastOrderId: String
+    startDate: DataTypes.DATE,
+    expiryDate: DataTypes.DATE,
+    lastPaymentId: DataTypes.STRING,
+    lastOrderId: DataTypes.STRING
 }, {
     timestamps: true
 });
 
-module.exports = mongoose.model('Subscription', subscriptionSchema);
+module.exports = Subscription;

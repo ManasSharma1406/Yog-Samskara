@@ -30,20 +30,17 @@ const activateSubscription = async (userId, planName, orderId, paymentId) => {
     const expiryDate = new Date();
     expiryDate.setMonth(expiryDate.getMonth() + months);
 
-    await Subscription.findOneAndUpdate(
-        { userId },
-        {
-            planName,
-            status: 'active',
-            totalSessions: sessions,
-            sessionsUsed: 0,
-            startDate,
-            expiryDate,
-            lastPaymentId: paymentId,
-            lastOrderId: orderId
-        },
-        { upsert: true, new: true }
-    );
+    await Subscription.upsert({
+        userId,
+        planName,
+        status: 'active',
+        totalSessions: sessions,
+        sessionsUsed: 0,
+        startDate,
+        expiryDate,
+        lastPaymentId: paymentId,
+        lastOrderId: orderId
+    });
 };
 
 // @desc    Create Razorpay Order
@@ -94,14 +91,16 @@ router.post('/verify', protect, async (req, res) => {
 
         if (razorpay_signature === expectedSign) {
             // Update transaction
-            const transaction = await Transaction.findOneAndUpdate(
-                { orderId: razorpay_order_id },
+            const [updatedRows, [transaction]] = await Transaction.update(
                 {
                     paymentId: razorpay_payment_id,
                     signature: razorpay_signature,
                     status: 'captured'
                 },
-                { new: true }
+                {
+                    where: { orderId: razorpay_order_id },
+                    returning: true
+                }
             );
 
             if (transaction) {
@@ -111,9 +110,9 @@ router.post('/verify', protect, async (req, res) => {
             return res.status(200).json({ message: "Payment verified and subscription activated" });
         } else {
             // Update transaction to failed
-            await Transaction.findOneAndUpdate(
-                { orderId: razorpay_order_id },
-                { status: 'failed' }
+            await Transaction.update(
+                { status: 'failed' },
+                { where: { orderId: razorpay_order_id } }
             );
             return res.status(400).json({ message: "Invalid signature" });
         }
@@ -130,32 +129,38 @@ router.post('/webhook', async (req, res) => {
     const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
     const signature = req.headers['x-razorpay-signature'];
 
+    // req.body is a Buffer when using express.raw()
+    const rawBody = req.body;
+
     const expectedSignature = crypto
         .createHmac('sha256', secret)
-        .update(JSON.stringify(req.body))
+        .update(rawBody)
         .digest('hex');
 
     if (signature === expectedSignature) {
-        const event = req.body.event;
-        const payload = req.body.payload.payment.entity;
+        const payload = JSON.parse(rawBody.toString());
+        const event = payload.event;
+        const entity = payload.payload.payment.entity;
 
         if (event === 'payment.captured') {
-            const transaction = await Transaction.findOneAndUpdate(
-                { orderId: payload.order_id },
+            const [updatedRows, [transaction]] = await Transaction.update(
                 {
-                    paymentId: payload.id,
+                    paymentId: entity.id,
                     status: 'captured'
                 },
-                { new: true }
+                {
+                    where: { orderId: entity.order_id },
+                    returning: true
+                }
             );
 
             if (transaction) {
-                await activateSubscription(transaction.userId, transaction.planName, payload.order_id, payload.id);
+                await activateSubscription(transaction.userId, transaction.planName, entity.order_id, entity.id);
             }
         } else if (event === 'payment.failed') {
-            await Transaction.findOneAndUpdate(
-                { orderId: payload.order_id },
-                { status: 'failed' }
+            await Transaction.update(
+                { status: 'failed' },
+                { where: { orderId: entity.order_id } }
             );
         }
 
@@ -170,9 +175,11 @@ router.post('/webhook', async (req, res) => {
 // @access  Private
 router.get('/history', protect, async (req, res) => {
     try {
-        const transactions = await Transaction.find({ userId: req.user.uid })
-            .sort({ createdAt: -1 })
-            .limit(20);
+        const transactions = await Transaction.findAll({
+            where: { userId: req.user.uid },
+            order: [['createdAt', 'DESC']],
+            limit: 20
+        });
 
         res.status(200).json({
             success: true,
