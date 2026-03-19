@@ -55,13 +55,13 @@ router.post('/ensure', protect, async (req, res) => {
         if (existing) {
             return res.status(200).json({ success: true, data: existing, created: false });
         }
-        const [profile, created] = await Profile.upsert({
+        const profile = await Profile.create({
             userFirebaseUid: req.user.uid,
             email: req.user.email,
             displayName: req.user.displayName || req.user.email?.split('@')[0] || 'User',
             isComplete: false
-        }, { returning: true });
-        res.status(201).json({ success: true, data: profile, created });
+        });
+        res.status(201).json({ success: true, data: profile, created: true });
     } catch (error) {
         console.error('Ensure profile error:', error);
         res.status(500).json({ success: false, message: 'Failed to ensure profile' });
@@ -98,8 +98,14 @@ router.post('/update', protect, async (req, res) => {
             profileData.displayName = req.user.displayName;
         }
 
-        // Use Sequelize upsert
-        const [profile, created] = await Profile.upsert(profileData);
+        let profile = await Profile.findOne({ where: { email: profileData.email } });
+        let created = false;
+        if (profile) {
+            await profile.update(profileData);
+        } else {
+            profile = await Profile.create(profileData);
+            created = true;
+        }
 
         res.status(200).json({
             success: true,
