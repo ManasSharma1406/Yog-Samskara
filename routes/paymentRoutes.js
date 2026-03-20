@@ -56,7 +56,7 @@ router.post('/create-order', protect, async (req, res) => {
         const userId = req.user.uid;
 
         const options = {
-            amount: amount * 100, // amount in the smallest currency unit (paise for INR)
+            amount: amount * 100,
             currency,
             receipt: `receipt_${Date.now()}`
         };
@@ -76,7 +76,11 @@ router.post('/create-order', protect, async (req, res) => {
         res.status(200).json(order);
     } catch (error) {
         console.error('Razorpay Order Error:', error);
-        res.status(500).json({ message: 'Failed to create order' });
+        res.status(500).json({
+            message: 'Failed to create order',
+            detail: error.message,
+            code: error.statusCode || error.code || 'UNKNOWN'
+        });
     }
 });
 

@@ -83,6 +83,8 @@ app.get('/api/health', (req, res) => {
         environment: process.env.NODE_ENV,
         firebaseAdmin: admin.apps.length > 0 ? 'Initialized' : 'Not Initialized',
         hasServiceAccountEnv: !!process.env.FIREBASE_SERVICE_ACCOUNT,
+        razorpayKeyId: process.env.RAZORPAY_KEY_ID ? 'set via env' : 'using hardcoded fallback',
+        razorpaySecret: process.env.RAZORPAY_KEY_SECRET ? 'set via env' : 'using hardcoded fallback',
         timestamp: new Date().toISOString()
     });
 });
