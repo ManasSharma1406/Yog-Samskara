@@ -1,6 +1,12 @@
 const { Sequelize } = require('sequelize');
 
-const sequelize = process.env.DATABASE_URL
+// Use DATABASE_URL only if it's a real remote database (not a localhost placeholder)
+const isRealDatabaseUrl = process.env.DATABASE_URL &&
+    !process.env.DATABASE_URL.includes('localhost') &&
+    !process.env.DATABASE_URL.includes('user:password') &&
+    !process.env.DATABASE_URL.includes('127.0.0.1');
+
+const sequelize = isRealDatabaseUrl
     ? new Sequelize(process.env.DATABASE_URL, {
         dialect: process.env.DATABASE_URL.startsWith('mysql') ? 'mysql' : 'postgres',
         logging: false,
