@@ -75,6 +75,18 @@ app.use('/api/profiles', profiles);
 app.use('/api/subscriptions', subscriptions);
 app.use('/api/admin', adminRoutes);
 
+// Health check route
+app.get('/api/health', (req, res) => {
+    const { admin } = require('./config/firebaseAdmin');
+    res.status(200).json({
+        success: true,
+        environment: process.env.NODE_ENV,
+        firebaseAdmin: admin.apps.length > 0 ? 'Initialized' : 'Not Initialized',
+        hasServiceAccountEnv: !!process.env.FIREBASE_SERVICE_ACCOUNT,
+        timestamp: new Date().toISOString()
+    });
+});
+
 // Error handler
 app.use(errorHandler);
 
