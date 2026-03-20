@@ -6,9 +6,13 @@ const Transaction = require('../models/Transaction');
 const Subscription = require('../models/Subscription');
 const { protect } = require('../middleware/authMiddleware');
 
+// Fallback to hardcoded keys if .env is not loaded (Hostinger workaround)
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_live_SP7aooyeXdBQDV';
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'DmUuxwqject1pEO3bfaYIHry';
+
 const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET
+    key_id: RAZORPAY_KEY_ID,
+    key_secret: RAZORPAY_KEY_SECRET
 });
 
 // Helper function to activate subscription
@@ -85,7 +89,7 @@ router.post('/verify', protect, async (req, res) => {
 
         const sign = razorpay_order_id + "|" + razorpay_payment_id;
         const expectedSign = crypto
-            .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+            .createHmac("sha256", RAZORPAY_KEY_SECRET)
             .update(sign.toString())
             .digest("hex");
 
