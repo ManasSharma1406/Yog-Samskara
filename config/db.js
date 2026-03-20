@@ -1,10 +1,13 @@
 const { Sequelize } = require('sequelize');
 
-const sequelize = process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('localhost')
+const sequelize = process.env.DATABASE_URL
     ? new Sequelize(process.env.DATABASE_URL, {
-        dialect: 'postgres',
+        dialect: process.env.DATABASE_URL.startsWith('mysql') ? 'mysql' : 'postgres',
         logging: false,
-        pool: { max: 5, min: 0, acquire: 30000, idle: 10000 }
+        pool: { max: 10, min: 0, acquire: 30000, idle: 10000 },
+        dialectOptions: process.env.DATABASE_URL.startsWith('mysql') ? {
+            connectTimeout: 60000
+        } : {}
     })
     : new Sequelize({
         dialect: 'sqlite',

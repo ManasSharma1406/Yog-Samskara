@@ -40,15 +40,14 @@ In the Hostinger Node.js dashboard, go to the **Environment Variables** tab and 
 | `SMTP_USER` | (Your Email Here) | e.g. `user@gmail.com` |
 | `SMTP_PASS` | (Your App Password Here) | Get from Google Settings |
 | `RAZORPAY_WEBHOOK_SECRET` | (Set in Razorpay Dashboard) | Secret for webhook |
-| `FIREBASE_SERVICE_ACCOUNT` | (Paste full JSON string) | **CRITICAL FIX** |
-
-> [!IMPORTANT]
-> **Fixing "Authentication service unavailable" (Firebase Error):**
-> Because `serviceAccountKey.json` is usually hidden from GitHub, your live server is missing it. 
-> 1. Copy the **entire** content of your local `backend/serviceAccountKey.json` file.
-> 2. Create a new variable in Hostinger called `FIREBASE_SERVICE_ACCOUNT`.
-> 3. Paste the **entire JSON** as the value.
-> 4. Delete the `GOOGLE_APPLICATION_CREDENTIALS` variable to avoid conflicts.
+### Method C: Use File Manager (Most Reliable)
+If the hPanel environment variables are not working, follow these steps:
+1.  Open the **File Manager** in Hostinger.
+2.  Go to your backend folder (e.g., `public_html/api/`).
+3.  Create a **new file** named `.env` (note the dot at the beginning).
+4.  Paste **all** your environment variables into this file (copy from your local `backend/.env` and replace secrets with live values).
+5.  Also, upload your `serviceAccountKey.json` directly into this same folder.
+6.  **Restart** the Node.js application.
 
 ## 5. Install Dependencies & Start
 1. In the Hostinger Node.js dashboard, click the **Install Dependencies** button (it runs `npm install`).
