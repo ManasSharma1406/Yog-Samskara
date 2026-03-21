@@ -4,6 +4,7 @@ const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const Transaction = require('../models/Transaction');
 const Subscription = require('../models/Subscription');
+const PromoCode = require('../models/PromoCode');
 const { protect } = require('../middleware/authMiddleware');
 
 // Fallback to hardcoded keys if .env is not loaded (Hostinger workaround)
@@ -47,13 +48,81 @@ const activateSubscription = async (userId, planName, orderId, paymentId) => {
     });
 };
 
+// @desc    Apply Promo Code
+// @route   POST /api/payments/apply-promo
+// @access  Private
+router.post('/apply-promo', protect, async (req, res) => {
+    try {
+        const { code } = req.body;
+        if (!code) {
+            return res.status(400).json({ success: false, message: 'Promo code is required' });
+        }
+
+        const promo = await PromoCode.findOne({ where: { code: code.toUpperCase() } });
+
+        if (!promo || !promo.isActive) {
+            return res.status(404).json({ success: false, message: 'Invalid or inactive promo code' });
+        }
+
+        if (promo.currentUses >= promo.maxUses) {
+            return res.status(400).json({ success: false, message: 'Promo code usage limit reached' });
+        }
+
+        res.status(200).json({
+            success: true,
+            discountPercentage: promo.discountPercentage,
+            code: promo.code
+        });
+
+    } catch (error) {
+        console.error('Apply Promo Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to apply promo code' });
+    }
+});
+
 // @desc    Create Razorpay Order
 // @route   POST /api/payments/create-order
 // @access  Private
 router.post('/create-order', protect, async (req, res) => {
     try {
-        const { amount, planName, currency = 'INR' } = req.body;
+        const { amount, planName, currency = 'INR', promoCode } = req.body;
         const userId = req.user.uid;
+
+        // If amount is 0, it means a 100% discount promo was applied
+        if (amount === 0 && promoCode) {
+            const promo = await PromoCode.findOne({ where: { code: promoCode.toUpperCase(), isActive: true } });
+            
+            if (!promo || promo.currentUses >= promo.maxUses) {
+                return res.status(400).json({ success: false, message: 'Invalid or expired promo code' });
+            }
+
+            // Increment promo usage
+            await promo.increment('currentUses');
+
+            // Generate fake order and payment IDs for free order
+            const fakeOrderId = `order_free_${Date.now()}`;
+            const fakePaymentId = `pay_free_${Date.now()}`;
+
+            // Save completed transaction
+            await Transaction.create({
+                userId,
+                orderId: fakeOrderId,
+                paymentId: fakePaymentId,
+                planName,
+                amount: 0,
+                currency,
+                status: 'captured'
+            });
+
+            // Activate subscription
+            await activateSubscription(userId, planName, fakeOrderId, fakePaymentId);
+
+            return res.status(200).json({
+                success: true,
+                isFreeCheckout: true,
+                message: 'Subscription activated directly via promo code'
+            });
+        }
 
         const options = {
             amount: amount * 100,

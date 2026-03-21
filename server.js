@@ -19,9 +19,29 @@ require('./models/Booking');
 require('./models/Subscription');
 require('./models/User');
 require('./models/Transaction');
+require('./models/PromoCode');
 
 // Connect to database
-connectDB();
+connectDB().then(async () => {
+    // Seed the YOSA100 promo code
+    try {
+        const PromoCode = require('./models/PromoCode');
+        const [promo, created] = await PromoCode.findOrCreate({
+            where: { code: 'YOSA100' },
+            defaults: {
+                discountPercentage: 100,
+                maxUses: 10,
+                currentUses: 0,
+                isActive: true
+            }
+        });
+        if (created) {
+            console.log('Seeded initial promo code: YOSA100');
+        }
+    } catch (err) {
+        console.error('Failed to seed promo code:', err);
+    }
+});
 
 // Route files
 const payments = require('./routes/paymentRoutes');
