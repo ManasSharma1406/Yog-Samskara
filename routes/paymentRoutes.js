@@ -58,7 +58,18 @@ router.post('/apply-promo', protect, async (req, res) => {
             return res.status(400).json({ success: false, message: 'Promo code is required' });
         }
 
-        const promo = await PromoCode.findOne({ where: { code: code.toUpperCase() } });
+        const upperCode = code.toUpperCase();
+
+        // EASY WAY: Hardcoded Promo Code Bypass
+        if (upperCode === 'YOSA100') {
+            return res.status(200).json({
+                success: true,
+                discountPercentage: 100,
+                code: 'YOSA100'
+            });
+        }
+
+        const promo = await PromoCode.findOne({ where: { code: upperCode } });
 
         if (!promo || !promo.isActive) {
             return res.status(404).json({ success: false, message: 'Invalid or inactive promo code' });
@@ -90,7 +101,36 @@ router.post('/create-order', protect, async (req, res) => {
 
         // If amount is 0, it means a 100% discount promo was applied
         if (amount === 0 && promoCode) {
-            const promo = await PromoCode.findOne({ where: { code: promoCode.toUpperCase(), isActive: true } });
+            const upperCode = promoCode.toUpperCase();
+            
+            // EASY WAY: Hardcoded Promo Code Bypass for checkout
+            if (upperCode === 'YOSA100') {
+                // Generate fake order and payment IDs for free order
+                const fakeOrderId = `order_free_${Date.now()}`;
+                const fakePaymentId = `pay_free_${Date.now()}`;
+
+                // Save completed transaction
+                await Transaction.create({
+                    userId,
+                    orderId: fakeOrderId,
+                    paymentId: fakePaymentId,
+                    planName,
+                    amount: 0,
+                    currency,
+                    status: 'captured'
+                });
+
+                // Activate subscription
+                await activateSubscription(userId, planName, fakeOrderId, fakePaymentId);
+
+                return res.status(200).json({
+                    success: true,
+                    isFreeCheckout: true,
+                    message: 'Subscription activated directly via promo code'
+                });
+            }
+
+            const promo = await PromoCode.findOne({ where: { code: upperCode, isActive: true } });
             
             if (!promo || promo.currentUses >= promo.maxUses) {
                 return res.status(400).json({ success: false, message: 'Invalid or expired promo code' });
