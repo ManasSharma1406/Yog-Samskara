@@ -296,34 +296,36 @@ router.get('/fix-subscriptions-emergency', async (req, res) => {
         return res.status(401).send('Unauthorized');
     }
     try {
-        const subscriptions = await Subscription.findAll({
-            where: { totalSessions: 0, status: 'active' }
-        });
+        const allSubs = await Subscription.findAll();
         
         let fixedCount = 0;
-        for (const sub of subscriptions) {
-            let sessions = 1;
-            const planName = sub.planName.toLowerCase();
-            if (planName.includes('family')) sessions = 12;
-            else if (planName.includes('transformation')) sessions = 36;
-            else if (planName.includes('journey')) sessions = 12; // 4-week journey is 12 sessions
-            else if (planName.includes('discovery')) sessions = 1;
+        for (const sub of allSubs) {
+            if (sub.totalSessions === 0 || sub.totalSessions === null || sub.totalSessions === '0') {
+                let sessions = 1;
+                const planName = (sub.planName || '').toLowerCase();
+                if (planName.includes('family')) sessions = 12;
+                else if (planName.includes('transformation')) sessions = 36;
+                else if (planName.includes('journey')) sessions = 12; // 4-week journey is 12 sessions
+                else if (planName.includes('discovery')) sessions = 1;
 
-            const match = planName.match(/(\d+)\s*(?:class|session|pack)/i);
-            if (match) {
-                sessions = parseInt(match[1], 10);
+                const match = planName.match(/(\d+)\s*(?:class|session|pack)/i);
+                if (match) {
+                    sessions = parseInt(match[1], 10);
+                }
+
+                sub.totalSessions = sessions;
+                if (sub.status !== 'active') sub.status = 'active'; // force active
+                
+                // Set expiry to 2 months from today (or from creation)
+                const d = new Date(sub.createdAt || new Date());
+                d.setMonth(d.getMonth() + 2);
+                sub.expiryDate = d;
+
+                await sub.save();
+                fixedCount++;
             }
-
-            sub.totalSessions = sessions;
-            // Set expiry to 2 months from today (or from creation)
-            const d = new Date(sub.createdAt || new Date());
-            d.setMonth(d.getMonth() + 2);
-            sub.expiryDate = d;
-
-            await sub.save();
-            fixedCount++;
         }
-        res.json({ success: true, message: `Fixed ${fixedCount} broken subscriptions` });
+        res.json({ success: true, message: `Fixed ${fixedCount} broken subscriptions`, debugData: allSubs });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
