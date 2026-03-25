@@ -26,9 +26,24 @@ router.get('/status', protect, async (req, res) => {
             });
         }
 
+        // Auto-expire if past expiryDate and still marked active
+        if (subscription.status === 'active' && subscription.expiryDate && new Date(subscription.expiryDate) < new Date()) {
+            await subscription.update({ status: 'expired' });
+        }
+
+        // Also auto-expire if all sessions are used
+        if (subscription.status === 'active' && subscription.totalSessions > 0 && subscription.sessionsUsed >= subscription.totalSessions) {
+            await subscription.update({ status: 'expired' });
+        }
+
+        const remainingSessions = Math.max(0, (subscription.totalSessions || 0) - (subscription.sessionsUsed || 0));
+
         res.status(200).json({
             success: true,
-            data: subscription
+            data: {
+                ...subscription.toJSON(),
+                remainingSessions
+            }
         });
     } catch (error) {
         console.error('Fetch subscription error:', error);

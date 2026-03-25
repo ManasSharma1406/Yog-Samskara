@@ -18,17 +18,37 @@ const razorpay = new Razorpay({
 
 // Helper function to activate subscription
 const activateSubscription = async (userId, planName, orderId, paymentId) => {
-    let sessions = 0;
-    let months = 1;
+    let sessions = 1; // Default to 1
+    let months = 2; // User requested 2 months expiry for all packages
 
-    // Logic for different plans
-    if (planName.includes('Personal')) {
-        sessions = 12;
-    } else if (planName.includes('Family')) {
+    // Logic for different plans based on frontend copy
+    if (planName.includes('Drop-In')) {
+        sessions = 1;
+    } else if (planName.includes('Family of 2')) {
         sessions = 24;
-    } else if (planName.includes('Immersive')) {
+    } else if (planName.includes('Family of 3')) {
         sessions = 32;
-        months = 12;
+    } else if (planName.includes('Family of 4')) {
+        sessions = 40;
+    } else if (planName.includes('4-Week Journey')) {
+        sessions = 8;
+    } else if (planName.includes('Deep Foundation')) {
+        sessions = 12;
+    } else if (planName.includes('Transformation')) {
+        sessions = 16;
+    } else if (planName.includes('Total Immersion')) {
+        sessions = 20;
+    } else {
+        // Extract number from packs like "10 Class Pack (Group)" or "Premium 12-Session Pack"
+        const match = planName.match(/(\d+)\s*[- ]*(Class|Session)/i);
+        if (match) {
+            sessions = parseInt(match[1], 10);
+        } else {
+            // Fallback for older plan names
+            if (planName.includes('Personal')) sessions = 12;
+            else if (planName.includes('Family')) sessions = 24;
+            else if (planName.includes('Immersive')) { sessions = 32; }
+        }
     }
 
     const startDate = new Date();
