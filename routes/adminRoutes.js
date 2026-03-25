@@ -286,4 +286,47 @@ router.put('/booking/:id/meet-link', protectAdmin, async (req, res) => {
     }
 });
 
+/**
+ * @route   GET /api/admin/fix-subscriptions-emergency
+ * @desc    Temporary script to fix 0-session subscriptions
+ * @access  Public (protected by secret query param)
+ */
+router.get('/fix-subscriptions-emergency', async (req, res) => {
+    if (req.query.secret !== 'yosa-fix-123') {
+        return res.status(401).send('Unauthorized');
+    }
+    try {
+        const subscriptions = await Subscription.findAll({
+            where: { totalSessions: 0, status: 'active' }
+        });
+        
+        let fixedCount = 0;
+        for (const sub of subscriptions) {
+            let sessions = 1;
+            const planName = sub.planName.toLowerCase();
+            if (planName.includes('family')) sessions = 12;
+            else if (planName.includes('transformation')) sessions = 36;
+            else if (planName.includes('journey')) sessions = 12; // 4-week journey is 12 sessions
+            else if (planName.includes('discovery')) sessions = 1;
+
+            const match = planName.match(/(\d+)\s*(?:class|session|pack)/i);
+            if (match) {
+                sessions = parseInt(match[1], 10);
+            }
+
+            sub.totalSessions = sessions;
+            // Set expiry to 2 months from today (or from creation)
+            const d = new Date(sub.createdAt || new Date());
+            d.setMonth(d.getMonth() + 2);
+            sub.expiryDate = d;
+
+            await sub.save();
+            fixedCount++;
+        }
+        res.json({ success: true, message: `Fixed ${fixedCount} broken subscriptions` });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 module.exports = router;
