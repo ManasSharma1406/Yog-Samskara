@@ -17,7 +17,7 @@ const razorpay = new Razorpay({
 });
 
 // Helper function to activate subscription
-const activateSubscription = async (userId, planName, orderId, paymentId) => {
+const activateSubscription = async (userId, planName, orderId, paymentId, amountPaid = 0, currency = 'INR') => {
     let sessions = 1; // Default to 1
     let months = 2; // User requested 2 months expiry for all packages
 
@@ -61,6 +61,8 @@ const activateSubscription = async (userId, planName, orderId, paymentId) => {
         status: 'active',
         totalSessions: sessions,
         sessionsUsed: 0,
+        amountPaid: amountPaid,
+        currency: currency,
         startDate,
         expiryDate,
         lastPaymentId: paymentId,
@@ -141,7 +143,7 @@ router.post('/create-order', protect, async (req, res) => {
                 });
 
                 // Activate subscription
-                await activateSubscription(userId, planName, fakeOrderId, fakePaymentId);
+                await activateSubscription(userId, planName, fakeOrderId, fakePaymentId, 0, currency);
 
                 return res.status(200).json({
                     success: true,
@@ -175,7 +177,7 @@ router.post('/create-order', protect, async (req, res) => {
             });
 
             // Activate subscription
-            await activateSubscription(userId, planName, fakeOrderId, fakePaymentId);
+            await activateSubscription(userId, planName, fakeOrderId, fakePaymentId, 0, currency);
 
             return res.status(200).json({
                 success: true,
@@ -241,7 +243,7 @@ router.post('/verify', protect, async (req, res) => {
             );
 
             if (transaction) {
-                await activateSubscription(transaction.userId, transaction.planName, razorpay_order_id, razorpay_payment_id);
+                await activateSubscription(transaction.userId, transaction.planName, razorpay_order_id, razorpay_payment_id, transaction.amount, transaction.currency);
             }
 
             return res.status(200).json({ message: "Payment verified and subscription activated" });
@@ -292,7 +294,7 @@ router.post('/webhook', async (req, res) => {
             );
 
             if (transaction) {
-                await activateSubscription(transaction.userId, transaction.planName, entity.order_id, entity.id);
+                await activateSubscription(transaction.userId, transaction.planName, entity.order_id, entity.id, transaction.amount, transaction.currency);
             }
         } else if (event === 'payment.failed') {
             await Transaction.update(
