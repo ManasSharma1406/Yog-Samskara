@@ -1,10 +1,8 @@
 const { Sequelize } = require('sequelize');
 
-// Use DATABASE_URL only if it's a real remote database (not a localhost placeholder)
+// Use DATABASE_URL if provided and not the exact placeholder string
 const isRealDatabaseUrl = process.env.DATABASE_URL &&
-    !process.env.DATABASE_URL.includes('localhost') &&
-    !process.env.DATABASE_URL.includes('user:password') &&
-    !process.env.DATABASE_URL.includes('127.0.0.1');
+    !process.env.DATABASE_URL.includes('user:password');
 
 const sequelize = isRealDatabaseUrl
     ? new Sequelize(process.env.DATABASE_URL, {
