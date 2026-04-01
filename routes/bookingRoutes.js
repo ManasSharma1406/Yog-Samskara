@@ -5,6 +5,15 @@ const Subscription = require('../models/Subscription');
 const { protect } = require('../middleware/authMiddleware');
 const { sendBookingEmail } = require('../utils/emailSender');
 
+const isTodayOrPastDate = (dateInput) => {
+    const selected = new Date(dateInput);
+    if (Number.isNaN(selected.getTime())) return true;
+    selected.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return selected <= today;
+};
+
 /**
  * @route   POST /api/bookings/create
  * @desc    Create a booking and verify subscription
@@ -38,6 +47,13 @@ router.post('/create', protect, async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: 'Missing required booking information'
+            });
+        }
+
+        if (isTodayOrPastDate(date)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Same-day or past-date bookings are not allowed. Please select a future date.'
             });
         }
 
@@ -152,6 +168,15 @@ router.post('/bulk-create', protect, async (req, res) => {
         }
 
         const privateSessionCount = bookings.filter(b => b.sessionType !== 'Group Class').length;
+
+        for (const slot of bookings) {
+            if (isTodayOrPastDate(slot.date)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Same-day or past-date bookings are not allowed in bulk booking.'
+                });
+            }
+        }
 
         if (subscription.sessionsUsed + privateSessionCount > subscription.totalSessions) {
             return res.status(403).json({
