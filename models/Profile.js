@@ -10,6 +10,9 @@ const Profile = sequelize.define('Profile', {
     displayName: {
         type: DataTypes.STRING
     },
+    firstName: DataTypes.STRING,
+    lastName: DataTypes.STRING,
+    whatsappNumber: DataTypes.STRING,
     email: {
         type: DataTypes.STRING,
         allowNull: false,

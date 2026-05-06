@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Profile = require('../models/Profile');
 const { protect } = require('../middleware/authMiddleware');
+const { notifyCustomerSignup } = require('../services/notifier');
 
 /**
  * @route   GET /api/profiles/:email
@@ -55,12 +56,39 @@ router.post('/ensure', protect, async (req, res) => {
         if (existing) {
             return res.status(200).json({ success: true, data: existing, created: false });
         }
+        const { whatsappNumber, firstName, lastName } = req.body;
         const profile = await Profile.create({
             userFirebaseUid: req.user.uid,
             email: req.user.email,
             displayName: req.user.displayName || req.user.email?.split('@')[0] || 'User',
+            firstName: firstName || '',
+            lastName: lastName || '',
+            whatsappNumber: whatsappNumber || '',
             isComplete: false
         });
+        
+        try {
+            const { sendWelcomeEmail } = require('../utils/emailSender');
+            await sendWelcomeEmail(profile.email, profile.firstName || profile.displayName);
+        } catch (emailErr) {
+            console.error('Failed to send welcome email:', emailErr);
+        }
+
+        if (profile.whatsappNumber) {
+            try {
+                const { sendWhatsAppMessage } = require('../utils/whatsappSender');
+                await sendWhatsAppMessage(profile.whatsappNumber, `Namaste ${profile.firstName || profile.displayName}!\n\nWelcome to Yog Samskara. We're thrilled to be part of your wellness journey. Book your first class today and let the transformation begin!`);
+            } catch (waErr) {
+                console.error('Failed to send WhatsApp welcome:', waErr);
+            }
+        }
+        
+        notifyCustomerSignup({ 
+            name: profile.firstName || profile.displayName, 
+            email: profile.email, 
+            fcmTokens: [] 
+        }).catch(console.error);
+
         res.status(201).json({ success: true, data: profile, created: true });
     } catch (error) {
         console.error('Ensure profile error:', error);
@@ -105,6 +133,26 @@ router.post('/update', protect, async (req, res) => {
         } else {
             profile = await Profile.create(profileData);
             created = true;
+            try {
+                const { sendWelcomeEmail } = require('../utils/emailSender');
+                await sendWelcomeEmail(profile.email, profile.firstName || profile.displayName || 'User');
+            } catch (emailErr) {
+                console.error('Failed to send welcome email:', emailErr);
+            }
+            if (profile.whatsappNumber) {
+                try {
+                    const { sendWhatsAppMessage } = require('../utils/whatsappSender');
+                    await sendWhatsAppMessage(profile.whatsappNumber, `Namaste ${profile.firstName || profile.displayName || 'User'}!\n\nWelcome to Yog Samskara. We're thrilled to be part of your wellness journey. Book your first class today and let the transformation begin!`);
+                } catch (waErr) {
+                    console.error('Failed to send WhatsApp welcome:', waErr);
+                }
+            }
+            
+            notifyCustomerSignup({ 
+                name: profile.firstName || profile.displayName || 'User', 
+                email: profile.email, 
+                fcmTokens: [] 
+            }).catch(console.error);
         }
 
         res.status(200).json({

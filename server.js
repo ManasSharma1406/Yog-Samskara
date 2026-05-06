@@ -20,9 +20,14 @@ require('./models/Subscription');
 require('./models/User');
 require('./models/Transaction');
 require('./models/PromoCode');
+require('./models/FcmToken');
 
 // Connect to database
 connectDB().then(async () => {
+    // Initialize cron jobs after DB is connected and synced
+    require('./scripts/cronJobs');
+    require('./scripts/scheduler')();
+
     // Seed the YOSA100 promo code
     try {
         const PromoCode = require('./models/PromoCode');
@@ -52,6 +57,8 @@ const adminRoutes = require('./routes/adminRoutes');
 const emailRoutes = require('./routes/emailRoutes');
 const { processEmailQueue } = require('./utils/emailQueue');
 const { sendResendEmail } = require('./utils/resendEmail');
+const userRoutes = require('./routes/userRoutes');
+const leads = require('./routes/leadRoutes');
 
 const app = express();
 
@@ -98,6 +105,8 @@ app.use('/api/profiles', profiles);
 app.use('/api/subscriptions', subscriptions);
 app.use('/api/admin', adminRoutes);
 app.use('/api/emails', emailRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/leads', leads);
 
 // Health check route
 app.get('/api/health', (req, res) => {

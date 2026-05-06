@@ -6,6 +6,7 @@ const Transaction = require('../models/Transaction');
 const Subscription = require('../models/Subscription');
 const PromoCode = require('../models/PromoCode');
 const { protect } = require('../middleware/authMiddleware');
+const { notifyPaymentConfirmed, getFcmTokens } = require('../services/notifier');
 
 // Fallback to hardcoded keys if .env is not loaded (Hostinger workaround)
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_live_SP7aooyeXdBQDV';
@@ -68,6 +69,31 @@ const activateSubscription = async (userId, planName, orderId, paymentId, amount
         lastPaymentId: paymentId,
         lastOrderId: orderId
     });
+
+    try {
+        const Profile = require('../models/Profile');
+        const { sendWhatsAppMessage } = require('../utils/whatsappSender');
+        
+        const profile = await Profile.findOne({ where: { userFirebaseUid: userId } });
+        if (profile && profile.whatsappNumber) {
+            const message = `Namaste ${profile.firstName || profile.displayName}!\n\nYour purchase for the ${planName} is confirmed! 🌿\n\nYou can now go to your dashboard and book your classes.\n\nThank you for choosing Yog Samskara!`;
+            await sendWhatsAppMessage(profile.whatsappNumber, message);
+        }
+        
+        if (profile) {
+            const fcmTokens = await getFcmTokens(userId);
+            notifyPaymentConfirmed({
+                name: profile.firstName || profile.displayName,
+                email: profile.email,
+                fcmTokens,
+                amount: amountPaid,
+                planName,
+                orderId
+            }).catch(console.error);
+        }
+    } catch (err) {
+        console.error('Failed to send WhatsApp purchase confirmation:', err);
+    }
 };
 
 // @desc    Apply Promo Code
@@ -120,6 +146,27 @@ router.post('/create-order', protect, async (req, res) => {
     try {
         const { amount, planName, currency = 'INR', promoCode } = req.body;
         const userId = req.user.uid;
+
+        // Prevent purchasing if user already has an active subscription
+        const existingSub = await Subscription.findOne({ where: { userId } });
+        if (existingSub && existingSub.status === 'active') {
+            let isActive = true;
+            const now = new Date();
+            
+            if (existingSub.expiryDate && new Date(existingSub.expiryDate) < now) {
+                isActive = false;
+            }
+            if (existingSub.totalSessions > 0 && existingSub.sessionsUsed >= existingSub.totalSessions) {
+                isActive = false;
+            }
+            
+            if (isActive) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'You already have an active subscription. Please complete or wait for your current plan to expire before purchasing a new one.'
+                });
+            }
+        }
 
         // If amount is 0, it means a 100% discount promo was applied
         if (amount === 0 && promoCode) {
@@ -230,17 +277,18 @@ router.post('/verify', protect, async (req, res) => {
 
         if (razorpay_signature === expectedSign) {
             // Update transaction
-            const [updatedRows, [transaction]] = await Transaction.update(
+            await Transaction.update(
                 {
                     paymentId: razorpay_payment_id,
                     signature: razorpay_signature,
                     status: 'captured'
                 },
                 {
-                    where: { orderId: razorpay_order_id },
-                    returning: true
+                    where: { orderId: razorpay_order_id }
                 }
             );
+
+            const transaction = await Transaction.findOne({ where: { orderId: razorpay_order_id } });
 
             if (transaction) {
                 await activateSubscription(transaction.userId, transaction.planName, razorpay_order_id, razorpay_payment_id, transaction.amount, transaction.currency);
@@ -282,16 +330,17 @@ router.post('/webhook', async (req, res) => {
         const entity = payload.payload.payment.entity;
 
         if (event === 'payment.captured') {
-            const [updatedRows, [transaction]] = await Transaction.update(
+            await Transaction.update(
                 {
                     paymentId: entity.id,
                     status: 'captured'
                 },
                 {
-                    where: { orderId: entity.order_id },
-                    returning: true
+                    where: { orderId: entity.order_id }
                 }
             );
+
+            const transaction = await Transaction.findOne({ where: { orderId: entity.order_id } });
 
             if (transaction) {
                 await activateSubscription(transaction.userId, transaction.planName, entity.order_id, entity.id, transaction.amount, transaction.currency);

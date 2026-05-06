@@ -36,6 +36,46 @@ const sendBookingEmail = async ({ to, subject, html }) => {
     }
 };
 
+const sendWelcomeEmail = async (to, name) => {
+    return sendBookingEmail({
+        to,
+        subject: 'Welcome to YOG SAMSKARA!',
+        html: `
+            <div style="font-family: Arial, sans-serif; color: #333;">
+                <h2>Namaste ${name}!</h2>
+                <p>Welcome to YOG SAMSKARA. Your account has been successfully created.</p>
+                <p>We are thrilled to have you join our community. Explore our yoga classes and find the perfect sessions to nurture your mind, body, and spirit.</p>
+                <br/>
+                <p>If you have any questions, feel free to reach out to our team.</p>
+                <p>Best regards,<br/>The YOG SAMSKARA Team</p>
+            </div>
+        `
+    });
+};
+
+const sendReminderEmail = async (to, name, meetingLink, classDetails, date, time) => {
+    return sendBookingEmail({
+        to,
+        subject: `Reminder: Your ${classDetails} Session is Starting Soon!`,
+        html: `
+            <div style="font-family: Arial, sans-serif; color: #333;">
+                <h2>Namaste ${name},</h2>
+                <p>This is a gentle reminder that your <strong>${classDetails}</strong> session starts in 15 minutes.</p>
+                <div style="background: #f4f4f4; padding: 15px; border-left: 5px solid #000; margin: 20px 0;">
+                    <p><strong>Date:</strong> ${date}</p>
+                    <p><strong>Time:</strong> ${time}</p>
+                    <p><strong>Meeting Link:</strong> <a href="${meetingLink}" style="color: #000; font-weight: bold;">Join Session</a></p>
+                </div>
+                <p>Please log in a few minutes early to ensure your setup is working.</p>
+                <p>We look forward to seeing you!</p>
+                <p>Best regards,<br/>The YOG SAMSKARA Team</p>
+            </div>
+        `
+    });
+};
+
 module.exports = {
-    sendBookingEmail
+    sendBookingEmail,
+    sendWelcomeEmail,
+    sendReminderEmail
 };

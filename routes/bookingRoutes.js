@@ -4,6 +4,7 @@ const Booking = require('../models/Booking');
 const Subscription = require('../models/Subscription');
 const { protect } = require('../middleware/authMiddleware');
 const { sendBookingEmail } = require('../utils/emailSender');
+const { notifyCustomerBooking, notifyInstructorBooking, notifyCustomerCancellation, getFcmTokens } = require('../services/notifier');
 
 const isTodayOrPastDate = (dateInput) => {
     const selected = new Date(dateInput);
@@ -121,6 +122,66 @@ router.post('/create', protect, async (req, res) => {
         } catch (emailErr) {
             console.error('Email sending failed:', emailErr);
             // Don't fail the booking if email fails
+        }
+
+        try {
+            const Profile = require('../models/Profile');
+            const { sendWhatsAppMessage } = require('../utils/whatsappSender');
+            const profile = await Profile.findOne({ where: { email: userEmail } });
+
+            // Notify Student
+            if (profile && profile.whatsappNumber) {
+                const message = `Namaste ${profile.firstName || userName}!\n\nYour ${sessionType} session on ${date} at ${time} is confirmed! 🧘\n\nMeeting link: ${booking.meetingLink}\n\nSee you on the mat!`;
+                await sendWhatsAppMessage(profile.whatsappNumber, message);
+            }
+
+            // Notify Instructor via WhatsApp
+            const instructorPhone = process.env.INSTRUCTOR_PHONE_NUMBER;
+            if (instructorPhone) {
+                const instructorMsg = `New Booking Alert 🔔\n\nStudent: ${profile?.firstName || userName} (${userEmail})\nSession: ${sessionType}\nDate: ${date}\nTime: ${time}`;
+                await sendWhatsAppMessage(instructorPhone, instructorMsg);
+            }
+            
+            // FCM & Email Notifications
+            const customerTokens = await getFcmTokens(req.user.uid);
+            notifyCustomerBooking({
+                name: profile?.firstName || userName,
+                email: userEmail,
+                fcmTokens: customerTokens,
+                className: sessionType,
+                instructorName: 'YogSamskara Instructor',
+                date,
+                time,
+                zoomLink: booking.meetingLink
+            }).catch(console.error);
+
+            // Instructor Notification (using hardcoded instructor details or admin role)
+            const instructorEmail = process.env.ADMIN_EMAIL || 'teacher@yogsamskara.com';
+            // We'll query User table to get the admin's UID and then FCM tokens if possible.
+            // But since we don't know the exact UID, we'll fetch tokens for a known admin UID if available, 
+            // or pass empty array to just send an email.
+            try {
+                const User = require('../models/User');
+                const adminUser = await User.findOne({ where: { email: instructorEmail } });
+                let instructorTokens = [];
+                if (adminUser) {
+                    instructorTokens = await getFcmTokens(adminUser.firebaseUid);
+                }
+                notifyInstructorBooking({
+                    instructorEmail: instructorEmail,
+                    instructorFcmTokens: instructorTokens,
+                    instructorName: 'Instructor',
+                    studentName: profile?.firstName || userName,
+                    className: sessionType,
+                    date,
+                    time
+                }).catch(console.error);
+            } catch (err) {
+                console.error('Error fetching admin for instructor notification', err);
+            }
+
+        } catch (waErr) {
+            console.error('WhatsApp booking confirmation failed:', waErr);
         }
 
         res.status(201).json({
@@ -246,6 +307,69 @@ router.post('/bulk-create', protect, async (req, res) => {
             });
         } catch (emailErr) {
             console.error('Email sending failed for bulk booking:', emailErr);
+        }
+
+        try {
+            const Profile = require('../models/Profile');
+            const { sendWhatsAppMessage } = require('../utils/whatsappSender');
+            const profile = await Profile.findOne({ where: { email: userEmail } });
+
+            // Notify Student
+            if (profile && profile.whatsappNumber) {
+                const message = `Namaste ${profile.firstName || userName}!\n\nYour ${createdBookings.length} sessions have been confirmed! 🧘\n\nYou have ${subscription.totalSessions - subscription.sessionsUsed} sessions remaining.\n\nSee you on the mat!`;
+                await sendWhatsAppMessage(profile.whatsappNumber, message);
+            }
+
+            // Notify Instructor via WhatsApp
+            const instructorPhone = process.env.INSTRUCTOR_PHONE_NUMBER;
+            if (instructorPhone) {
+                const instructorMsg = `New Bulk Booking Alert 🔔\n\nStudent: ${profile?.firstName || userName} (${userEmail})\nBooked ${createdBookings.length} sessions.`;
+                await sendWhatsAppMessage(instructorPhone, instructorMsg);
+            }
+            
+            // FCM & Email Notifications
+            const customerTokens = await getFcmTokens(req.user.uid);
+            // Just notify for the first booking to avoid spamming 10 emails/pushes at once, 
+            // or send a consolidated one. Since we don't have a bulk notify function, 
+            // we will send one notification using the first booking's details, but indicating multiple.
+            if (createdBookings.length > 0) {
+                const firstB = createdBookings[0];
+                notifyCustomerBooking({
+                    name: profile?.firstName || userName,
+                    email: userEmail,
+                    fcmTokens: customerTokens,
+                    className: `${createdBookings.length}x ${firstB.sessionType}`,
+                    instructorName: 'YogSamskara Instructor',
+                    date: 'Multiple Dates',
+                    time: 'Multiple Times',
+                    zoomLink: firstB.meetingLink
+                }).catch(console.error);
+
+                // Instructor Notification
+                const instructorEmail = process.env.ADMIN_EMAIL || 'teacher@yogsamskara.com';
+                try {
+                    const User = require('../models/User');
+                    const adminUser = await User.findOne({ where: { email: instructorEmail } });
+                    let instructorTokens = [];
+                    if (adminUser) {
+                        instructorTokens = await getFcmTokens(adminUser.firebaseUid);
+                    }
+                    notifyInstructorBooking({
+                        instructorEmail: instructorEmail,
+                        instructorFcmTokens: instructorTokens,
+                        instructorName: 'Instructor',
+                        studentName: profile?.firstName || userName,
+                        className: `${createdBookings.length}x ${firstB.sessionType}`,
+                        date: 'Multiple Dates',
+                        time: 'Multiple Times'
+                    }).catch(console.error);
+                } catch (err) {
+                    console.error('Error fetching admin for instructor notification', err);
+                }
+            }
+
+        } catch (waErr) {
+            console.error('WhatsApp bulk booking confirmation failed:', waErr);
         }
 
         res.status(201).json({

@@ -43,6 +43,10 @@ const Booking = sequelize.define('Booking', {
     },
     meetingLink: {
         type: DataTypes.TEXT
+    },
+    reminderSent: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
     }
 }, {
     timestamps: true
