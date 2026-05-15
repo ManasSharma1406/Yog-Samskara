@@ -3,6 +3,16 @@ const router = express.Router();
 const Profile = require('../models/Profile');
 const { protect } = require('../middleware/authMiddleware');
 const { notifyCustomerSignup } = require('../services/notifier');
+const { sendWelcomeEmail } = require('../utils/mailer');
+const { body, validationResult } = require('express-validator');
+const rateLimit = require('express-rate-limit');
+
+// Stricter rate limit for profile updates to prevent email spam
+const profileUpdateLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 10, // Limit each IP to 10 profile updates per hour
+    message: 'Too many profile updates, please try again after an hour'
+});
 
 /**
  * @route   GET /api/profiles/:email
@@ -50,7 +60,17 @@ router.get('/:email', protect, async (req, res) => {
  * @desc    Create minimal profile from Firebase user if none exists (for new signups)
  * @access  Private
  */
-router.post('/ensure', protect, async (req, res) => {
+router.post('/ensure', [
+    protect,
+    profileUpdateLimiter,
+    body('firstName').optional().trim().escape(),
+    body('lastName').optional().trim().escape(),
+    body('whatsappNumber').optional().trim().isMobilePhone().withMessage('Invalid WhatsApp number')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ success: false, errors: errors.array() });
+    }
     try {
         const existing = await Profile.findOne({ where: { email: req.user.email } });
         if (existing) {
@@ -68,7 +88,6 @@ router.post('/ensure', protect, async (req, res) => {
         });
         
         try {
-            const { sendWelcomeEmail } = require('../utils/emailSender');
             await sendWelcomeEmail(profile.email, profile.firstName || profile.displayName);
         } catch (emailErr) {
             console.error('Failed to send welcome email:', emailErr);
@@ -101,7 +120,18 @@ router.post('/ensure', protect, async (req, res) => {
  * @desc    Create or update user profile
  * @access  Private
  */
-router.post('/update', protect, async (req, res) => {
+router.post('/update', [
+    protect,
+    profileUpdateLimiter,
+    body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
+    body('firstName').optional().trim().escape(),
+    body('lastName').optional().trim().escape(),
+    body('whatsappNumber').optional().trim().isMobilePhone().withMessage('Invalid WhatsApp number')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ success: false, errors: errors.array() });
+    }
     try {
         const profileData = req.body;
 
@@ -134,7 +164,6 @@ router.post('/update', protect, async (req, res) => {
             profile = await Profile.create(profileData);
             created = true;
             try {
-                const { sendWelcomeEmail } = require('../utils/emailSender');
                 await sendWelcomeEmail(profile.email, profile.firstName || profile.displayName || 'User');
             } catch (emailErr) {
                 console.error('Failed to send welcome email:', emailErr);

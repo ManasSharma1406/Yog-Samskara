@@ -5,12 +5,17 @@ const crypto = require('crypto');
 const Transaction = require('../models/Transaction');
 const Subscription = require('../models/Subscription');
 const PromoCode = require('../models/PromoCode');
+const { body, validationResult } = require('express-validator');
 const { protect } = require('../middleware/authMiddleware');
+const { sendPaymentConfirmation } = require('../utils/mailer');
 const { notifyPaymentConfirmed, getFcmTokens } = require('../services/notifier');
 
-// Fallback to hardcoded keys if .env is not loaded (Hostinger workaround)
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_live_SP7aooyeXdBQDV';
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'DmUuxwqject1pEO3bfaYIHry';
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
+
+if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+    console.error('FATAL ERROR: RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET is not defined in .env');
+}
 
 const razorpay = new Razorpay({
     key_id: RAZORPAY_KEY_ID,
@@ -90,6 +95,15 @@ const activateSubscription = async (userId, planName, orderId, paymentId, amount
                 planName,
                 orderId
             }).catch(console.error);
+
+            // Send detailed email via new mailer system
+            sendPaymentConfirmation(profile.email, {
+                userName: profile.firstName || profile.displayName,
+                planName,
+                amount: amountPaid,
+                transactionId: paymentId,
+                orderId
+            }).catch(console.error);
         }
     } catch (err) {
         console.error('Failed to send WhatsApp purchase confirmation:', err);
@@ -99,7 +113,14 @@ const activateSubscription = async (userId, planName, orderId, paymentId, amount
 // @desc    Apply Promo Code
 // @route   POST /api/payments/apply-promo
 // @access  Private
-router.post('/apply-promo', protect, async (req, res) => {
+router.post('/apply-promo', [
+    protect,
+    body('code').trim().notEmpty().withMessage('Promo code is required').isAlphanumeric().withMessage('Invalid promo code format')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ success: false, errors: errors.array() });
+    }
     try {
         const { code } = req.body;
         if (!code) {
@@ -142,7 +163,16 @@ router.post('/apply-promo', protect, async (req, res) => {
 // @desc    Create Razorpay Order
 // @route   POST /api/payments/create-order
 // @access  Private
-router.post('/create-order', protect, async (req, res) => {
+router.post('/create-order', [
+    protect,
+    body('amount').isNumeric().withMessage('Amount must be a number'),
+    body('planName').trim().notEmpty().withMessage('Plan name is required'),
+    body('promoCode').optional().trim().isAlphanumeric().withMessage('Invalid promo code format')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ success: false, errors: errors.array() });
+    }
     try {
         const { amount, planName, currency = 'INR', promoCode } = req.body;
         const userId = req.user.uid;

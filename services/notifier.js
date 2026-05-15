@@ -19,7 +19,7 @@ const transporter = nodemailer.createTransport({
     port: 465,
     secure: true,
     auth: {
-        user: process.env.EMAIL_USER,
+        user: process.env.NOTIFICATION_EMAIL,
         pass: process.env.EMAIL_PASS,
     },
 });
@@ -68,7 +68,7 @@ const sendBrandEmail = async (to, subject, title, bodyHtml, ctaLink, ctaText) =>
     `;
 
     return transporter.sendMail({
-        from: `"YogSamskara" <${process.env.EMAIL_USER}>`,
+        from: `"YogSamskara" <${process.env.NOTIFICATION_EMAIL}>`,
         to,
         subject,
         html

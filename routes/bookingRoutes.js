@@ -3,8 +3,9 @@ const router = express.Router();
 const Booking = require('../models/Booking');
 const Subscription = require('../models/Subscription');
 const { protect } = require('../middleware/authMiddleware');
-const { sendBookingEmail } = require('../utils/emailSender');
+const { sendBookingConfirmation } = require('../utils/mailer');
 const { notifyCustomerBooking, notifyInstructorBooking, notifyCustomerCancellation, getFcmTokens } = require('../services/notifier');
+const { body, validationResult } = require('express-validator');
 
 const isTodayOrPastDate = (dateInput) => {
     const selected = new Date(dateInput);
@@ -20,7 +21,20 @@ const isTodayOrPastDate = (dateInput) => {
  * @desc    Create a booking and verify subscription
  * @access  Private
  */
-router.post('/create', protect, async (req, res) => {
+router.post('/create', [
+    protect,
+    body('date').trim().notEmpty().withMessage('Date is required').isISO8601().withMessage('Invalid date format'),
+    body('time').trim().notEmpty().withMessage('Time is required'),
+    body('userName').trim().notEmpty().withMessage('User name is required').isLength({ min: 2 }).withMessage('Name too short'),
+    body('userEmail').trim().isEmail().withMessage('Valid email is required'),
+    body('sessionType').optional().trim(),
+    body('focusArea').optional().trim(),
+    body('intensity').optional().isInt({ min: 0, max: 100 }).withMessage('Intensity must be between 0 and 100')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ success: false, errors: errors.array() });
+    }
     console.log('--- NEW BOOKING REQUEST ---');
     console.log('User:', req.user.email);
     try {
@@ -101,27 +115,15 @@ router.post('/create', protect, async (req, res) => {
 
         // Send confirmation email
         try {
-            await sendBookingEmail({
-                to: userEmail,
-                subject: 'Your Yoga Session is Confirmed!',
-                html: `
-                    <div style="font-family: Arial, sans-serif; color: #333;">
-                        <h2>Namaste ${userName}!</h2>
-                        <p>Your <strong>${sessionType}</strong> session has been confirmed.</p>
-                        <div style="background: #f4f4f4; padding: 15px; border-left: 5px solid #000; margin: 20px 0;">
-                            <p><strong>Date:</strong> ${date}</p>
-                            <p><strong>Time:</strong> ${time}</p>
-                            <p><strong>Session:</strong> ${sessionType}</p>
-                            <p><strong>Meeting Link:</strong> <a href="${booking.meetingLink}" style="color: #000; font-weight: bold;">Join Session</a></p>
-                        </div>
-                        <p>We look forward to seeing you!</p>
-                        <p>Best regards,<br/>The YOG SAMSKARA Team</p>
-                    </div>
-                `
+            await sendBookingConfirmation(userEmail, {
+                userName,
+                className: sessionType,
+                date,
+                time,
+                zoomLink: booking.meetingLink
             });
         } catch (emailErr) {
             console.error('Email sending failed:', emailErr);
-            // Don't fail the booking if email fails
         }
 
         try {
@@ -205,7 +207,16 @@ router.post('/create', protect, async (req, res) => {
  * @desc    Create multiple bookings at once
  * @access  Private
  */
-router.post('/bulk-create', protect, async (req, res) => {
+router.post('/bulk-create', [
+    protect,
+    body('bookings').isArray({ min: 1 }).withMessage('At least one booking is required'),
+    body('bookings.*.date').trim().notEmpty().isISO8601().withMessage('Invalid date format'),
+    body('bookings.*.time').trim().notEmpty().withMessage('Time is required')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ success: false, errors: errors.array() });
+    }
     console.log('--- NEW BULK BOOKING REQUEST ---');
     console.log('User:', req.user.email);
     
@@ -284,26 +295,12 @@ router.post('/bulk-create', protect, async (req, res) => {
         }
 
         try {
-            const slotsHtml = createdBookings.map(b => `<li style="margin-bottom: 5px;"><strong>Date:</strong> ${new Date(b.date).toLocaleDateString()} | <strong>Time:</strong> ${b.time}</li>`).join('');
-            
-            await sendBookingEmail({
-                to: userEmail,
-                subject: 'Your Yoga Sessions are Confirmed!',
-                html: `
-                    <div style="font-family: Arial, sans-serif; color: #333;">
-                        <h2>Namaste ${userName}!</h2>
-                        <p>Your <strong>${createdBookings.length}</strong> sessions have been confirmed.</p>
-                        <div style="background: #f4f4f4; padding: 15px; border-left: 5px solid #000; margin: 20px 0;">
-                            <ul style="list-style-type: none; padding: 0; margin: 0;">
-                                ${slotsHtml}
-                            </ul>
-                            <p style="margin-top: 15px;"><strong>Meeting Link (for all sessions):</strong> <a href="https://meet.google.com/ngs-doim-gqq" style="color: #000; font-weight: bold;">Join Session</a></p>
-                        </div>
-                        <p>You have ${subscription.totalSessions - subscription.sessionsUsed} sessions remaining in your current plan.</p>
-                        <p>We look forward to seeing you!</p>
-                        <p>Best regards,<br/>The YOG SAMSKARA Team</p>
-                    </div>
-                `
+            await sendBookingConfirmation(userEmail, {
+                userName,
+                className: `${createdBookings.length}x Sessions`,
+                date: 'Multiple Dates',
+                time: 'Multiple Times',
+                zoomLink: "https://meet.google.com/ngs-doim-gqq"
             });
         } catch (emailErr) {
             console.error('Email sending failed for bulk booking:', emailErr);

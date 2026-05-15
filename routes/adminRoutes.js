@@ -5,6 +5,7 @@ const Profile = require('../models/Profile');
 const { sendBookingEmail } = require('../utils/emailSender');
 const Subscription = require('../models/Subscription');
 const Booking = require('../models/Booking');
+const Lead = require('../models/Lead');
 const { admin } = require('../config/firebaseAdmin');
 
 // --- Middleware to protect admin routes ---
@@ -328,6 +329,21 @@ router.get('/fix-subscriptions-emergency', async (req, res) => {
         res.json({ success: true, message: `Fixed ${fixedCount} broken subscriptions`, debugData: allSubs });
     } catch (e) {
         res.status(500).json({ error: e.message });
+    }
+});
+
+/**
+ * @route   GET /api/admin/leads
+ * @desc    Get all student intake leads
+ * @access  Private (Admin)
+ */
+router.get('/leads', protectAdmin, async (req, res) => {
+    try {
+        const leads = await Lead.findAll({ order: [['createdAt', 'DESC']] });
+        res.status(200).json({ success: true, data: leads });
+    } catch (error) {
+        console.error('Fetch leads error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch leads' });
     }
 });
 

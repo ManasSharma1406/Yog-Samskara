@@ -47,9 +47,22 @@ const Booking = sequelize.define('Booking', {
     reminderSent: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
+    },
+    reminder15Sent: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
+    reminder5Sent: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
     }
 }, {
-    timestamps: true
+    timestamps: true,
+    indexes: [
+        { fields: ['userId'] },
+        { fields: ['userEmail'] },
+        { fields: ['date'] }
+    ]
 });
 
 module.exports = Booking;

@@ -11,8 +11,8 @@ const sendBookingEmail = async ({ to, subject, html }) => {
             port: process.env.SMTP_PORT || 587,
             secure: false, // true for 465, false for other ports
             auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS
+                user: process.env.NOTIFICATION_EMAIL,
+                pass: process.env.EMAIL_PASS
             },
             tls: {
                 rejectUnauthorized: false
@@ -20,7 +20,7 @@ const sendBookingEmail = async ({ to, subject, html }) => {
         });
 
         const mailOptions = {
-            from: `"YOG SAMSKARA" <${process.env.SMTP_USER}>`,
+            from: `"YOG SAMSKARA" <${process.env.NOTIFICATION_EMAIL}>`,
             to,
             subject,
             html

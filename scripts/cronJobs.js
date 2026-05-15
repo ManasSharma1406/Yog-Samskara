@@ -1,4 +1,6 @@
 const cron = require('node-cron');
+const { exec } = require('child_process');
+const path = require('path');
 const Booking = require('../models/Booking');
 const { sendReminderEmail } = require('../utils/emailSender');
 
@@ -72,6 +74,25 @@ cron.schedule('* * * * *', async () => {
     } catch (error) {
         console.error('Error running reminder cron job:', error);
     }
+});
+
+// ---------------------------------------------------------
+// 💾 Daily Database Backup (Runs at 3:00 AM)
+// ---------------------------------------------------------
+cron.schedule('0 3 * * *', () => {
+    console.log('Running daily database backup...');
+    const backupScript = path.join(__dirname, 'backup.js');
+    exec(`node ${backupScript}`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Backup error: ${error.message}`);
+            return;
+        }
+        if (stderr) {
+            console.error(`Backup stderr: ${stderr}`);
+            return;
+        }
+        console.log(`Backup output: ${stdout}`);
+    });
 });
 
 console.log('Cron scheduler for class reminders initialized.');
