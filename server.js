@@ -1,24 +1,9 @@
 const express = require('express');
 const dotenv = require('dotenv');
-const cluster = require('cluster');
 const os = require('os');
 
 // Load env vars
 dotenv.config();
-
-if (cluster.isMaster && process.env.NODE_ENV === 'production') {
-    const numCPUs = os.cpus().length;
-    console.log(`Master process is running. Forking ${numCPUs} workers...`);
-    for (let i = 0; i < numCPUs; i++) {
-        cluster.fork();
-    }
-    cluster.on('exit', (worker, code, signal) => {
-        console.log(`Worker ${worker.process.pid} died. Forking a new one...`);
-        cluster.fork();
-    });
-} else {
-    // Normal server initialization code below...
-
 
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
@@ -243,5 +228,3 @@ process.on('uncaughtException', (err) => {
 
 // Export app for Vercel Serverless Functions
 module.exports = app;
-}
-
