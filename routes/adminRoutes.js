@@ -41,7 +41,7 @@ router.post('/login', (req, res) => {
     const { email, password } = req.body;
 
     // Fallback credentials if process.env isn't set
-    const adminEmail = process.env.ADMIN_EMAIL || 'teacher@flownest.com';
+    const adminEmail = process.env.ADMIN_EMAIL || 'yogsamskara02@gmail.com';
     const adminPassword = process.env.ADMIN_PASSWORD || 'teacher123';
 
     if (email === adminEmail && password === adminPassword) {
