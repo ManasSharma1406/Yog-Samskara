@@ -3,8 +3,6 @@ const { Sequelize } = require('sequelize');
 // Auto-correct common URL issues on Hostinger
 let dbUrl = process.env.DATABASE_URL || '';
 if (dbUrl) {
-    // Force IPv4
-    dbUrl = dbUrl.replace('@localhost:', '@127.0.0.1:');
     // Auto-encode the @ symbol in the specific password if they forgot
     dbUrl = dbUrl.replace('June@2023', 'June%402023');
     // Remove the accidental YOUR_ prefix if they copy-pasted it
