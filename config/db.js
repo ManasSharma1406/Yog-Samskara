@@ -1,15 +1,24 @@
 const { Sequelize } = require('sequelize');
 
-// Use DATABASE_URL if provided and not the exact placeholder string
-const isRealDatabaseUrl = process.env.DATABASE_URL &&
-    !process.env.DATABASE_URL.includes('user:password');
+// Auto-correct common URL issues on Hostinger
+let dbUrl = process.env.DATABASE_URL || '';
+if (dbUrl) {
+    // Force IPv4
+    dbUrl = dbUrl.replace('@localhost:', '@127.0.0.1:');
+    // Auto-encode the @ symbol in the specific password if they forgot
+    dbUrl = dbUrl.replace('June@2023', 'June%402023');
+    // Remove the accidental YOUR_ prefix if they copy-pasted it
+    dbUrl = dbUrl.replace(':YOUR_June', ':June');
+}
+
+const isRealDatabaseUrl = dbUrl && !dbUrl.includes('user:password');
 
 const sequelize = isRealDatabaseUrl
-    ? new Sequelize(process.env.DATABASE_URL, {
-        dialect: process.env.DATABASE_URL.startsWith('mysql') ? 'mysql' : 'postgres',
+    ? new Sequelize(dbUrl, {
+        dialect: dbUrl.startsWith('mysql') ? 'mysql' : 'postgres',
         logging: false,
         pool: { max: 10, min: 0, acquire: 30000, idle: 10000 },
-        dialectOptions: process.env.DATABASE_URL.startsWith('mysql') ? {
+        dialectOptions: dbUrl.startsWith('mysql') ? {
             connectTimeout: 60000
         } : {
             ssl: {
