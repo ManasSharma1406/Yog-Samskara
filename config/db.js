@@ -2,9 +2,9 @@ const { Sequelize } = require('sequelize');
 const path = require('path');
 
 const sequelize = new Sequelize(
-    process.env.DB_NAME || 'u916218583_yosa',
-    process.env.DB_USER || 'u916218583_bhumikahardiya',
-    process.env.DB_PASSWORD || 'June@2023.123456789',
+    process.env.DB_NAME || 'u916218583_Yosasa',
+    process.env.DB_USER || 'u916218583_yogsamskara123',
+    process.env.DB_PASSWORD || 'June2023.1234567',
     {
         host: process.env.DB_HOST || 'localhost',
         dialect: 'mysql',
