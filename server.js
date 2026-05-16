@@ -96,6 +96,8 @@ const allowedOrigins = [
     'https://yog-samskara.vercel.app',
     'https://yogsamskara.com',
     'https://www.yogsamskara.com',
+    'https://yosa.yogsamskara.com',
+    'https://www.yosa.yogsamskara.com',
 ];
 
 const corsOptions = {
