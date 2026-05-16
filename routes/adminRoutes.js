@@ -288,6 +288,39 @@ router.put('/booking/:id/meet-link', protectAdmin, async (req, res) => {
 });
 
 /**
+ * @route   GET /api/admin/create-promos-emergency
+ * @desc    Temporary script to create promo codes via browser (bypasses missing 'node' command in Hostinger SSH)
+ * @access  Public (temporary)
+ */
+router.get('/create-promos-emergency', async (req, res) => {
+    try {
+        const PromoCode = require('../models/PromoCode');
+        const promos = [
+            { code: 'YOSA30', discountPercentage: 30, maxUses: 10, currentUses: 0, isActive: true },
+            { code: 'YOSA45', discountPercentage: 45, maxUses: 10, currentUses: 0, isActive: true },
+            { code: 'YOSA10', discountPercentage: 10, maxUses: 10, currentUses: 0, isActive: true }
+        ];
+
+        let results = [];
+        for (const promo of promos) {
+            const [record, created] = await PromoCode.findOrCreate({
+                where: { code: promo.code },
+                defaults: promo
+            });
+            if (!created) {
+                await record.update(promo);
+            }
+            results.push({ code: promo.code, created });
+        }
+
+        res.json({ success: true, message: 'Promo codes successfully created/updated!', data: results });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+/**
  * @route   GET /api/admin/fix-subscriptions-emergency
  * @desc    Temporary script to fix 0-session subscriptions
  * @access  Public (protected by secret query param)
