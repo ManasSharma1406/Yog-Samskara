@@ -1,29 +1,14 @@
 const { Sequelize } = require('sequelize');
 
-// Auto-correct common URL issues on Hostinger
-let dbUrl = process.env.DATABASE_URL || '';
-if (dbUrl) {
-    // Auto-encode the @ symbol in the specific password if they forgot
-    dbUrl = dbUrl.replace('June@2023', 'June%402023');
-    // Remove the accidental YOUR_ prefix if they copy-pasted it
-    dbUrl = dbUrl.replace(':YOUR_June', ':June');
-}
+const isProduction = process.env.NODE_ENV === 'production' || process.env.DATABASE_URL?.includes('u916218583');
 
-const isRealDatabaseUrl = dbUrl && !dbUrl.includes('user:password');
-
-const sequelize = isRealDatabaseUrl
-    ? new Sequelize(dbUrl, {
-        dialect: dbUrl.startsWith('mysql') ? 'mysql' : 'postgres',
+const sequelize = isProduction
+    ? new Sequelize('u916218583_yosa', 'u916218583_bhumikahardiya', 'June@2023.123456789', {
+        host: 'localhost',
+        dialect: 'mysql',
         logging: false,
         pool: { max: 10, min: 0, acquire: 30000, idle: 10000 },
-        dialectOptions: dbUrl.startsWith('mysql') ? {
-            connectTimeout: 60000
-        } : {
-            ssl: {
-                require: true,
-                rejectUnauthorized: false
-            }
-        }
+        dialectOptions: { connectTimeout: 60000 }
     })
     : new Sequelize({
         dialect: 'sqlite',
