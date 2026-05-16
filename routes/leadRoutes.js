@@ -14,7 +14,7 @@ router.post('/', [
     body('lastName').trim().notEmpty().escape(),
     body('email').isEmail().normalizeEmail(),
     body('phone').trim().notEmpty(),
-    body('age').optional().isInt(),
+    body('age').optional({ checkFalsy: true }).isInt(),
     body('gender').optional().trim().escape(),
     body('healthGoals').optional().trim().escape(),
     body('medicalHistory').optional().trim().escape(),

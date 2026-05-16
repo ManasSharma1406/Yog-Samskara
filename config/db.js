@@ -1,20 +1,10 @@
 const { Sequelize } = require('sequelize');
 
-const isProduction = process.env.NODE_ENV === 'production' || process.env.DATABASE_URL?.includes('u916218583');
-
-const sequelize = isProduction
-    ? new Sequelize('u916218583_yosa', 'u916218583_bhumikahardiya', 'June@2023.123456789', {
-        host: 'localhost',
-        dialect: 'mysql',
-        logging: false,
-        pool: { max: 10, min: 0, acquire: 30000, idle: 10000 },
-        dialectOptions: { connectTimeout: 60000 }
-    })
-    : new Sequelize({
-        dialect: 'sqlite',
-        storage: './database.sqlite',
-        logging: false
-    });
+const sequelize = new Sequelize({
+    dialect: 'sqlite',
+    storage: './database.sqlite',
+    logging: false
+});
 
 const connectDB = async () => {
     try {
