@@ -196,10 +196,27 @@ const sendCriticalAlert = async (errorDetails) => {
     });
 };
 
+/**
+ * 6. Generic Lead Notification Email (used by leadRoutes)
+ */
+const sendNotificationEmail = async (to, subject, text) => {
+    addToQueue(async () => {
+        const mail = {
+            from: `"YogSamskara" <${process.env.NOTIFICATION_EMAIL || process.env.WELCOME_EMAIL}>`,
+            to,
+            subject,
+            html: `<div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 8px; white-space: pre-line;">${text}</div>`
+        };
+        const transporter = notificationTransporter || welcomeTransporter;
+        await sendEmailWithRetry(transporter, mail);
+    });
+};
+
 module.exports = {
     sendWelcomeEmail,
     sendPaymentConfirmation,
     sendBookingConfirmation,
     sendClassReminder,
-    sendCriticalAlert
+    sendCriticalAlert,
+    sendNotificationEmail
 };
