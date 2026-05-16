@@ -105,7 +105,8 @@ const corsOptions = {
         if (!origin) return callback(null, true);
         if (allowedOrigins.indexOf(origin) !== -1) return callback(null, true);
         if (process.env.NODE_ENV === 'development' && origin?.startsWith('http://localhost')) return callback(null, true);
-        callback(new Error('Not allowed by CORS'));
+        // Reject unknown origins cleanly (do not throw)
+        return callback(null, false);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -113,6 +114,9 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Explicitly handle OPTIONS preflight for all routes
+app.options('*', cors(corsOptions));
 
 // Security Middlewares
 app.use(helmet()); // Set security HTTP headers
@@ -150,7 +154,7 @@ app.use((req, res, next) => {
     next();
 });
 
-// Apply rate limiting to all API routes
+// Apply rate limiting to all API routes (AFTER cors handling)
 app.use('/api', limiter);
 
 // Raw body parser for Razorpay webhook (must be before express.json())
