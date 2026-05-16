@@ -177,7 +177,7 @@ router.get('/customers', protectAdmin, async (req, res) => {
         res.status(200).json({ success: true, count: customers.length, data: customers });
     } catch (error) {
         console.error('Fetch customers error:', error);
-        res.status(500).json({ success: false, message: 'Failed to fetch customers' });
+        res.status(500).json({ success: false, message: 'Failed to fetch customers', error: String(error) });
     }
 });
 
@@ -343,7 +343,7 @@ router.get('/leads', protectAdmin, async (req, res) => {
         res.status(200).json({ success: true, data: leads });
     } catch (error) {
         console.error('Fetch leads error:', error);
-        res.status(500).json({ success: false, message: 'Failed to fetch leads' });
+        res.status(500).json({ success: false, message: 'Failed to fetch leads', error: String(error) });
     }
 });
 
