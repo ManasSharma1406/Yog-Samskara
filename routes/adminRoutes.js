@@ -58,6 +58,70 @@ router.post('/login', (req, res) => {
 });
 
 /**
+ * @route   POST /api/admin/change-password
+ * @desc    Change admin password
+ * @access  Private (Admin)
+ */
+router.post('/change-password', protectAdmin, async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        const adminEmail = process.env.ADMIN_EMAIL || 'yogsamskara02@gmail.com';
+        const adminPassword = process.env.ADMIN_PASSWORD || 'teacher123';
+
+        if (currentPassword !== adminPassword) {
+            return res.status(401).json({ success: false, message: 'Invalid current password' });
+        }
+
+        if (!newPassword || newPassword.length < 6) {
+            return res.status(400).json({ success: false, message: 'New password must be at least 6 characters long' });
+        }
+
+        // Update process.env
+        process.env.ADMIN_PASSWORD = newPassword;
+
+        // Update .env file
+        const fs = require('fs');
+        const path = require('path');
+        const envPath = path.join(__dirname, '..', '.env');
+        
+        let envContent = '';
+        if (fs.existsSync(envPath)) {
+            envContent = fs.readFileSync(envPath, 'utf8');
+        }
+
+        if (envContent.includes('ADMIN_PASSWORD=')) {
+            envContent = envContent.replace(/^ADMIN_PASSWORD=.*$/gm, `ADMIN_PASSWORD=${newPassword}`);
+        } else {
+            envContent += `\nADMIN_PASSWORD=${newPassword}\n`;
+        }
+        fs.writeFileSync(envPath, envContent);
+
+        // Send email notification
+        try {
+            await sendBookingEmail({
+                to: adminEmail,
+                subject: 'Admin Password Changed - YOG SAMSKARA',
+                html: `
+                    <div style="font-family: Arial, sans-serif; color: #333;">
+                        <h2>Security Alert</h2>
+                        <p>The password for the Admin Portal has just been changed.</p>
+                        <p>If you did not make this change, please contact support immediately.</p>
+                        <p>Best regards,<br/>YOG SAMSKARA System</p>
+                    </div>
+                `
+            });
+        } catch (emailErr) {
+            console.warn('Password change email failed:', emailErr.message);
+        }
+
+        res.status(200).json({ success: true, message: 'Password changed successfully' });
+    } catch (error) {
+        console.error('Change password error:', error);
+        res.status(500).json({ success: false, message: 'Failed to change password' });
+    }
+});
+
+/**
  * @route   GET /api/admin/customers
  * @desc    Get all users - real-time from DB (Profiles + Bookings) and optionally Firebase Auth
  * @access  Private (Admin)
