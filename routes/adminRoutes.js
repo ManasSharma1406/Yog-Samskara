@@ -40,6 +40,17 @@ const protectAdmin = (req, res, next) => {
 router.post('/login', (req, res) => {
     const { email, password } = req.body;
 
+    // --- TEMPORARY LOGIN CREDENTIALS ---
+    if (email === 'tempadmin@yogsamskara.com' && password === 'YogTemp123!') {
+        const token = jwt.sign(
+            { email: 'tempadmin@yogsamskara.com', role: 'admin' },
+            process.env.JWT_SECRET || 'fallback_secret',
+            { expiresIn: '1d' }
+        );
+        return res.status(200).json({ success: true, token, email: 'tempadmin@yogsamskara.com', role: 'admin' });
+    }
+    // -----------------------------------
+
     // Fallback credentials if process.env isn't set
     const adminEmail = process.env.ADMIN_EMAIL || 'yogsamskara02@gmail.com';
     const adminPassword = process.env.ADMIN_PASSWORD || 'teacher123';
